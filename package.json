@@ -1,0 +1,47 @@
+{
+  "name": "better-auth-pci-dss-plugin",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [
+    "better-auth",
+    "pci-dss",
+    "password-policy",
+    "security",
+    "auth"
+  ],
+  "author": "Moisés Lopes Ferreira Selique",
+  "email": "judeudemolidor@hotmail.com",
+  "url": "https://github.com/selique",
+  "homepage": "https://github.com/selique/better-auth-pci-dss-plugin",
+  "bugs": {
+    "url": "https://github.com/selique/better-auth-pci-dss-plugin/issues"
+  },
+  "contributors": [
+    {
+      "name": "Moisés Lopes Ferreira Selique",
+      "email": "judeudemolidor@hotmail.com",
+      "url": "https://github.com/selique"
+    }
+  ],
+  "license": "MIT",
+  "description": "A Better Auth plugin to enforce PCI DSS 4.0 compliant password policies.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/selique/better-auth-pci-dss-plugin.git"
+  },
+  "dependencies": {
+    "better-auth": "^1.2.10",
+    "bcrypt": "^5.1.1",
+    "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.3",
+    "jest": "^30.0.2",
+    "ts-jest": "^29.4.0"
+  }
+}
