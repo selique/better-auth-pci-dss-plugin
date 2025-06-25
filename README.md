@@ -6,6 +6,22 @@ A community plugin for [Better Auth](https://better-auth.dev) that enforces adva
 
 This plugin focuses on features not typically covered by standard authentication libraries, such as password history and expiration policies. For basic policies like password length, complexity, and account lockout, you should use the native options provided by Better Auth itself.
 
+## Project History
+
+### Latest Updates (v1.0.0)
+- **🔒 Security Enhancement**: Replaced plaintext password storage with bcrypt hashing for password history
+- **🧪 Complete Test Rewrite**: New simplified test suite with 6 passing tests focusing on core functionality
+- **📚 Enhanced Documentation**: Added development warnings, Better Auth Kit testing info, and contribution guidelines
+- **🔧 Improved Configuration**: Fixed Jest/TypeScript compatibility issues and added proper build scripts
+- **🗑️ Cleanup**: Removed company-specific documentation and outdated prompt files
+- **🚀 Production Ready**: Plugin structure optimized and ready for open-source distribution
+
+### Previous Development
+- Initial implementation of PCI DSS password policies
+- Integration with Better Auth plugin system
+- Schema definitions for password tracking fields
+- Hook-based architecture for password validation and lifecycle management
+
 ## Features
 
 -   **Password History:** Prevent users from reusing their recent passwords (securely hashed with bcrypt).
@@ -158,13 +174,43 @@ npm install --save-dev @better-auth-kit/tests
 
 This library provides utilities to create test instances of Better Auth with your plugins for more realistic testing scenarios.
 
+### Current Status & Roadmap
+
+**✅ Completed:**
+- Core plugin functionality with password history, expiration, and first-login policies
+- Secure bcrypt-based password hashing
+- Complete test suite with Jest
+- TypeScript definitions and Better Auth integration
+- Comprehensive documentation
+
+**🔄 In Progress:**
+- Advanced integration testing with Better Auth Kit
+- Performance optimization for large password histories
+- Enhanced error handling and user feedback
+
+**📋 Future Plans:**
+- Additional PCI DSS compliance features
+- Integration with popular frontend frameworks
+- Advanced reporting and analytics
+- Plugin configuration UI
+
 ### Contributing
+
+We welcome contributions! Here's how to get started:
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Make your changes and add tests
+4. Run `npm test` to ensure all tests pass
+5. Commit your changes (`git commit -m 'Add some amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+**Before contributing:**
+- Read the existing code to understand the plugin architecture
+- Ensure your changes maintain PCI DSS compliance
+- Add tests for new functionality
+- Update documentation as needed
 
 ## License
 
