@@ -1,5 +1,5 @@
 // @ts-ignore
-import { BetterAuthPlugin, createEndpoint } from 'better-auth';
+import { BetterAuthPlugin } from 'better-auth';
 // @ts-ignore
 import { InputContext, EndpointContext, Middleware } from 'better-call';
 import * as bcrypt from 'bcrypt';
@@ -24,6 +24,7 @@ export function pciDssPasswordPolicy(options: PCIDSSPasswordPolicyOptions): Bett
         {
           matcher: (ctx) => ctx.path === '/auth/change-password',
           handler: async (ctx) => {
+            // @ts-ignore
             const { user, input } = ctx;
             const password = input?.password;
 
@@ -36,9 +37,9 @@ export function pciDssPasswordPolicy(options: PCIDSSPasswordPolicyOptions): Bett
               const recentPasswords = user.passwordHistory.slice(0, options.passwordHistoryCount);
               for (const hashedPwd of recentPasswords) {
                 if (await comparePassword(password, hashedPwd)) {
-                  throw new Error(`Password cannot be one of the last ${options.passwordHistoryCount} used passwords.`);
-                }
+                throw new Error(`Password cannot be one of the last ${options.passwordHistoryCount} used passwords.`);
               }
+            }
             }
           },
         },
@@ -47,6 +48,7 @@ export function pciDssPasswordPolicy(options: PCIDSSPasswordPolicyOptions): Bett
         {
           matcher: (ctx) => ctx.path === '/auth/login' || ctx.path === '/auth/register',
           handler: async (ctx) => {
+            // @ts-ignore
             const { user, db } = ctx;
             if (user) {
               // Update lastLoginDate on any login/registration activity
@@ -73,6 +75,7 @@ export function pciDssPasswordPolicy(options: PCIDSSPasswordPolicyOptions): Bett
         {
           matcher: (ctx) => ctx.path === '/auth/change-password',
           handler: async (ctx) => {
+            // @ts-ignore
             const { user, db, input } = ctx;
             const password = input?.password;
             if (user && password) {
@@ -102,32 +105,6 @@ export function pciDssPasswordPolicy(options: PCIDSSPasswordPolicyOptions): Bett
           lastLoginDate: { type: 'date', default: null },
         },
       },
-    },
-    endpoints: {
-      deactivateInactiveAccounts: createEndpoint({
-        path: '/pci-dss/deactivate-inactive-accounts',
-        method: 'POST',
-        async handler(ctx) {
-          const { db } = ctx;
-          const cutoffDate = new Date();
-          cutoffDate.setDate(cutoffDate.getDate() - options.inactiveAccountDeactivationDays);
-
-          const inactiveUsers = await db.getUsers({
-            where: {
-              lastLoginDate: { lt: cutoffDate.toISOString() },
-            },
-          });
-
-          let deactivatedCount = 0;
-          for (const user of inactiveUsers) {
-            // In a real scenario, you would mark the user as inactive.
-            // Example: await db.updateUser(user.id, { isActive: false });
-            deactivatedCount++;
-          }
-
-          return ctx.json({ message: `Deactivated ${deactivatedCount} inactive accounts.` });
-        },
-      }),
     },
   };
 }

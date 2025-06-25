@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest --no-cache --passWithNoTests",
+    "build": "tsc",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "better-auth",
@@ -33,15 +37,18 @@
     "url": "git+https://github.com/selique/better-auth-pci-dss-plugin.git"
   },
   "dependencies": {
-    "better-auth": "^1.2.10",
     "bcrypt": "^5.1.1",
     "typescript": "^5.8.3"
   },
   "devDependencies": {
+    "@better-auth-kit/tests": "^0.2.0",
     "@types/bcrypt": "^5.0.2",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.0.4",
+    "better-auth": "^1.2.10",
+    "better-sqlite3": "^12.1.1",
     "jest": "^30.0.2",
-    "ts-jest": "^29.4.0"
+    "ts-jest": "^29.4.0",
+    "vitest": "^3.2.4"
   }
 }
