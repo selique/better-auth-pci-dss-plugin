@@ -13,6 +13,7 @@ This plugin focuses on features not typically covered by standard authentication
 - **🧪 Complete Test Rewrite**: New simplified test suite with 6 passing tests focusing on core functionality
 - **📚 Enhanced Documentation**: Added development warnings, Better Auth Kit testing info, and contribution guidelines
 - **🔧 Improved Configuration**: Fixed Jest/TypeScript compatibility issues and added proper build scripts
+- **⚙️ TypeScript Configuration**: Corrected tsconfig.json paths to match root-level file structure
 - **🗑️ Cleanup**: Removed company-specific documentation and outdated prompt files
 - **🚀 Production Ready**: Plugin structure optimized and ready for open-source distribution
 
