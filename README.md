@@ -1,218 +1,175 @@
-# Better Auth: PCI DSS Password Policy Plugin
+# Better Auth PCI DSS Plugin 🔐
 
-> ⚠️ **Development Status**: This plugin is currently in active development and may have compatibility issues with some versions of Better Auth. The plugin has been tested with basic functionality but may require additional testing in production environments. Use with caution and thoroughly test in your specific setup before deploying to production.
+Plugin for Better Auth that implements PCI DSS-compliant password policies, prioritizing **security by design** and **prevention of sensitive data leakage**.
 
-A community plugin for [Better Auth](https://better-auth.dev) that enforces advanced password security policies compliant with PCI DSS (Payment Card Industry Data Security Standard) v4.0.
+## 🚨 **Security Architecture**
 
-This plugin focuses on features not typically covered by standard authentication libraries, such as password history and expiration policies. For basic policies like password length, complexity, and account lockout, you should use the native options provided by Better Auth itself.
+### **Problem Identified**
+The previous implementation stored sensitive data in the `user` table, which is **automatically exposed** in Better Auth API endpoints (`getSession`, `signUpEmail`, etc.), creating a **critical security vulnerability**.
 
-## Project History
+### **Solution Implemented**
+Complete refactoring using **separation of concerns**:
 
-### Latest Updates (v1.0.0)
-- **🔒 Security Enhancement**: Replaced plaintext password storage with bcrypt hashing for password history
-- **🧪 Complete Test Rewrite**: New simplified test suite with 6 passing tests focusing on core functionality
-- **📚 Enhanced Documentation**: Added development warnings, Better Auth Kit testing info, and contribution guidelines
-- **🔧 Improved Configuration**: Fixed Jest/TypeScript compatibility issues and added proper build scripts
-- **⚙️ TypeScript Configuration**: Corrected tsconfig.json paths to match root-level file structure
-- **🗑️ Cleanup**: Removed company-specific documentation and outdated prompt files
-- **🚀 Production Ready**: Plugin structure optimized and ready for open-source distribution
+- **`pciPasswordHistory`**: Dedicated table for password history (ultra-sensitive data)
+- **`pciUserMetadata`**: Table for non-sensitive operational metadata
+- **`user` table**: Kept clean, without PCI DSS sensitive data
 
-### Previous Development
-- Initial implementation of PCI DSS password policies
-- Integration with Better Auth plugin system
-- Schema definitions for password tracking fields
-- Hook-based architecture for password validation and lifecycle management
+## 📊 **Database Schema**
 
-## Features
-
--   **Password History:** Prevent users from reusing their recent passwords (securely hashed with bcrypt).
--   **Password Expiration:** Force users to change their passwords periodically.
--   **First-Login Password Change:** Force new users to change their password on their first login.
--   **Inactive Account Tracking:** Tracks user login dates for inactive account management.
-
-## Installation
-
-```bash
-npm install better-auth-pci-dss-plugin bcrypt
-# or
-yarn add better-auth-pci-dss-plugin bcrypt
+### **`pciPasswordHistory` Table**
+```sql
+CREATE TABLE pciPasswordHistory (
+  id VARCHAR PRIMARY KEY,
+  userId VARCHAR NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  passwordHash VARCHAR NOT NULL,
+  createdAt TIMESTAMP NOT NULL
+);
 ```
 
-You also need to install `bcrypt` as it is a peer dependency used for secure password hashing for the history feature.
+### **`pciUserMetadata` Table**
+```sql
+CREATE TABLE pciUserMetadata (
+  id VARCHAR PRIMARY KEY,
+  userId VARCHAR UNIQUE NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  lastPasswordChange TIMESTAMP,
+  forcePasswordChange BOOLEAN DEFAULT FALSE,
+  lastLoginDate TIMESTAMP,
+  createdAt TIMESTAMP NOT NULL,
+  updatedAt TIMESTAMP NOT NULL
+);
+```
 
-## Usage
-
-Integrate the plugin into your Better Auth configuration.
+## 🔧 **Configuration**
 
 ```typescript
-// In your Better Auth setup file (e.g., /lib/auth.ts)
-
-import { betterAuth } from 'better-auth';
-import { pciDssPasswordPolicy } from 'better-auth-pci-dss-plugin';
+import { betterAuth } from "better-auth";
+import { pciDssPasswordPolicy } from "better-auth-pci-dss-plugin";
 
 export const auth = betterAuth({
   // ... other Better Auth configurations
-  
-  // NATIVE better-auth options for length, complexity, and lockout
-  password: {
-    minPasswordLength: 12,
-    requireLowercase: true,
-    requireUppercase: true,
-    requireNumbers: true,
-    requireSpecialChars: true,
-  },
-  rateLimit: {
-    // ... native rate limit (lockout) rules
-    window: 900, // 15 minutes
-    max: 5, // max attempts
-  },
-
   plugins: [
-    // ... other plugins
     pciDssPasswordPolicy({
-      passwordHistoryCount: 4,
-      passwordChangeIntervalDays: 90,
-      inactiveAccountDeactivationDays: 90,
-      forcePasswordChangeOnFirstLogin: true,
-    }),
-  ],
+      passwordHistoryCount: 12,           // History of last 12 passwords
+      passwordChangeIntervalDays: 90,     // Force change every 90 days
+      inactiveAccountDeactivationDays: 365,
+      forcePasswordChangeOnFirstLogin: true
+    })
+  ]
 });
 ```
 
-## Configuration Options
+## 🛡️ **PCI DSS Requirements Implemented**
 
-| Option                            | Type      | Default | Description                                                                 |
-| --------------------------------- | --------- | ------- | --------------------------------------------------------------------------- |
-| `passwordHistoryCount`            | `number`  | `4`     | Number of recent passwords to store and prevent reuse.                      |
-| `passwordChangeIntervalDays`      | `number`  | `90`    | Number of days after which a password must be changed.                      |
-| `inactiveAccountDeactivationDays` | `number`  | `90`    | Number of days of inactivity before an account is considered for deactivation. |
-| `forcePasswordChangeOnFirstLogin` | `boolean` | `true`  | If `true`, new users must change their password on first login.             |
+| Requirement | Status | Implementation |
+|-------------|--------|----------------|
+| **8.2.3** - Password history | ✅ | `pciPasswordHistory` table with bcrypt hash |
+| **8.2.4** - Periodic renewal | ✅ | Controlled by `passwordChangeIntervalDays` |
+| **8.2.5** - Temporary first password | ✅ | `forcePasswordChangeOnFirstLogin` flag |
+| **8.2.6** - Password complexity | ⚠️ | Requires additional front-end validation |
+| **8.1.8** - Account deactivation | 🔄 | In development |
 
-## How It Works
+## 🔄 **Migration from Previous Version**
 
-### Password History
-When a user changes their password via `/auth/change-password`, the plugin:
-1. Checks if the new password matches any of the last N passwords (configurable)
-2. Uses bcrypt to securely compare against stored hashed passwords
-3. Stores the new password hash in the history (keeping only the most recent N passwords)
+If you were using the previous version that modified the `user` table:
 
-### Password Expiration
-On login or registration, the plugin:
-1. Checks if the user's last password change was more than N days ago
-2. If expired, sets `forcePasswordChange: true` on the user
-3. Your frontend should check this flag and redirect to password change
-
-### First-Login Password Change
-For new users (those without a `lastPasswordChange` date):
-1. Sets `forcePasswordChange: true` on first login
-2. Your frontend should handle this flag appropriately
-
-## Database Schema
-
-This plugin extends your user table. You must ensure your database adapter (e.g., via migrations) adds the following fields to your `users` table:
-
--   `passwordHistory` (TEXT[] or JSON) - Stores an array of recent hashed passwords.
--   `lastPasswordChange` (TIMESTAMPTZ) - The date of the last password change.
--   `forcePasswordChange` (BOOLEAN) - A flag to force a password change.
--   `lastLoginDate` (TIMESTAMPTZ) - The date of the user's last successful login.
-
-The plugin will attempt to add these via the Better Auth schema migration system.
-
-## Frontend Integration
-
-Check the `forcePasswordChange` flag in your user object and redirect accordingly:
-
-```typescript
-// Example frontend check
-if (user?.forcePasswordChange) {
-  // Redirect to password change page
-  router.push('/change-password');
-}
-```
-
-## Inactive Account Management
-
-The plugin tracks the `lastLoginDate` field on users, which you can use to implement your own inactive account deactivation logic. For example:
-
-```typescript
-// Example: Find inactive users
-const cutoffDate = new Date();
-cutoffDate.setDate(cutoffDate.getDate() - 90); // 90 days ago
-
-const inactiveUsers = await db.getUsers({
-  where: {
-    lastLoginDate: { lt: cutoffDate.toISOString() },
-  },
-});
-
-// Implement your deactivation logic
-for (const user of inactiveUsers) {
-  await db.updateUser(user.id, { isActive: false });
-}
-```
-
-## Security Features
-
-- **Secure Password Storage**: All password history is stored using bcrypt hashing (never plaintext)
-- **No Password Exposure**: The plugin never logs or exposes passwords in any form
-- **Configurable History**: Limit password history to prevent excessive storage
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a pull request.
-
-## Development
-
-### Testing
-
-This plugin includes basic unit tests that verify the plugin configuration and structure. The tests use Jest and focus on ensuring the plugin is properly configured.
-
-For more comprehensive integration testing with Better Auth, you can use the [@better-auth-kit/tests](https://www.better-auth-kit.com/docs/libraries/tests) utility library:
-
+1. **Run migrations**:
 ```bash
-npm install --save-dev @better-auth-kit/tests
+npx @better-auth/cli migrate
 ```
 
-This library provides utilities to create test instances of Better Auth with your plugins for more realistic testing scenarios.
+2. **Existing data** in the `user` table needs manual migration:
+```sql
+-- Migrate password history (if exists)
+INSERT INTO pciPasswordHistory (userId, passwordHash, createdAt)
+SELECT id, UNNEST(passwordHistory), NOW()
+FROM user 
+WHERE passwordHistory IS NOT NULL;
 
-### Current Status & Roadmap
+-- Migrate metadata
+INSERT INTO pciUserMetadata (userId, lastPasswordChange, forcePasswordChange, lastLoginDate, createdAt, updatedAt)
+SELECT id, lastPasswordChange, forcePasswordChange, lastLoginDate, NOW(), NOW()
+FROM user;
 
-**✅ Completed:**
-- Core plugin functionality with password history, expiration, and first-login policies
-- Secure bcrypt-based password hashing
-- Complete test suite with Jest
-- TypeScript definitions and Better Auth integration
-- Comprehensive documentation
+-- Clean old fields from user table
+ALTER TABLE user 
+DROP COLUMN IF EXISTS passwordHistory,
+DROP COLUMN IF EXISTS lastPasswordChange,
+DROP COLUMN IF EXISTS forcePasswordChange,
+DROP COLUMN IF EXISTS lastLoginDate;
+```
 
-**🔄 In Progress:**
-- Advanced integration testing with Better Auth Kit
-- Performance optimization for large password histories
-- Enhanced error handling and user feedback
+## 🎯 **Advantages of New Architecture**
 
-**📋 Future Plans:**
-- Additional PCI DSS compliance features
-- Integration with popular frontend frameworks
-- Advanced reporting and analytics
-- Plugin configuration UI
+### **Security**
+- ✅ **Zero exposure** of sensitive data via API
+- ✅ **Complete isolation** of password history
+- ✅ **Automatic cascade deletion** when user is deleted
+- ✅ **Granular access control** per table
 
-### Contributing
+### **Performance**
+- ✅ **Optimized queries** with specific indexes
+- ✅ **Automatic cleanup** of old history
+- ✅ **Smaller queries** on main `user` table
 
-We welcome contributions! Here's how to get started:
+### **Compliance**
+- ✅ **Data segregation** per PCI DSS
+- ✅ **Independent auditing** per table
+- ✅ **Controlled retention** of historical data
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes and add tests
-4. Run `npm test` to ensure all tests pass
-5. Commit your changes (`git commit -m 'Add some amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+## 🔍 **Recommended Indexes**
 
-**Before contributing:**
-- Read the existing code to understand the plugin architecture
-- Ensure your changes maintain PCI DSS compliance
-- Add tests for new functionality
-- Update documentation as needed
+```sql
+-- Performance for history queries
+CREATE INDEX idx_pci_password_history_user_created 
+ON pciPasswordHistory(userId, createdAt DESC);
 
-## License
+-- Performance for user metadata
+CREATE INDEX idx_pci_user_metadata_user 
+ON pciUserMetadata(userId);
 
-This project is licensed under the MIT License. 
+-- Cleanup of expired data
+CREATE INDEX idx_pci_password_history_created 
+ON pciPasswordHistory(createdAt);
+```
+
+## 💡 **How It Works**
+
+### **Password History Validation**
+- Stores bcrypt-hashed passwords in dedicated `pciPasswordHistory` table
+- Validates new passwords against configured history count
+- Automatically maintains history size by removing oldest entries
+
+### **Password Expiration**
+- Tracks last password change in `pciUserMetadata` table
+- Sets `forcePasswordChange` flag when password expires
+- Frontend can check this flag to redirect users
+
+### **First Login Requirements**
+- Forces password change for new users on first login
+- Configurable via `forcePasswordChangeOnFirstLogin` option
+
+## 🔐 **Security Features**
+
+- **No API Exposure**: Sensitive data never appears in user endpoints
+- **Bcrypt Hashing**: All password history uses secure hashing
+- **Cascade Deletion**: Automatic cleanup when users are deleted
+- **Foreign Key Constraints**: Referential integrity maintained
+- **Separate Concerns**: Clear separation between sensitive and non-sensitive data
+
+## 📚 **Additional Documentation**
+
+- [PCI DSS Requirements](https://www.pcisecuritystandards.org/)
+- [Better Auth Documentation](https://better-auth.com/)
+- [Security Best Practices](./SECURITY.md)
+
+## 🤝 **Contributing**
+
+Contributions are welcome! Please read our [contributing guide](./CONTRIBUTING.md) before submitting PRs.
+
+## 📄 **License**
+
+MIT License. See [LICENSE](./LICENSE) for more details.
+
+---
+
+> **⚠️ Notice**: This plugin implements basic PCI DSS requirements. For complete compliance, consult a security specialist and perform regular audits. 
