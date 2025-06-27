@@ -1,12 +1,8 @@
 # Contributing to Better Auth PCI DSS Plugin 🤝
 
-We welcome contributions to the Better Auth PCI DSS Plugin! This document provides guidelines for contributing to the project.
+Guidelines for contributing to the Better Auth PCI DSS Plugin.
 
-## 📋 **Code of Conduct**
-
-By participating in this project, you agree to maintain a respectful and inclusive environment for all contributors.
-
-## 🚀 **Getting Started**
+## 🚀 **Quick Start**
 
 ### **Prerequisites**
 - Node.js 18+ and npm
@@ -14,32 +10,25 @@ By participating in this project, you agree to maintain a respectful and inclusi
 - Understanding of PCI DSS security requirements
 - Familiarity with Better Auth framework
 
-### **Development Setup**
+### **Setup**
 ```bash
-# Clone the repository
 git clone https://github.com/your-username/better-auth-pci-dss-plugin.git
 cd better-auth-pci-dss-plugin
-
-# Install dependencies
 npm install
-
-# Run tests
 npm test
-
-# Run linting
 npm run lint
 ```
 
-## 🔧 **Development Guidelines**
+## 🔧 **Development Standards**
 
 ### **Security First**
-- **Never expose sensitive data** in user-facing APIs
-- **Use bcrypt** for all password hashing (minimum cost factor 12)
-- **Follow least privilege** principle in database access
-- **Validate all inputs** and sanitize outputs
-- **Log security events** appropriately (without sensitive data)
+- Never expose sensitive data in user-facing APIs
+- Use bcrypt for password hashing (minimum cost factor 12)
+- Follow least privilege principle in database access
+- Validate all inputs and sanitize outputs
+- Log security events appropriately (without sensitive data)
 
-### **Code Standards**
+### **Code Quality**
 ```typescript
 // ✅ Good: Secure, typed, and clear
 interface PCIDSSOptions {
@@ -76,26 +65,23 @@ function checkPassword(pwd: any, user: any) {
 ```
 
 ### **Database Best Practices**
-- Use **dedicated tables** for sensitive data
-- Implement **proper foreign key constraints**
-- Include **cascade deletion** for cleanup
-- Add **appropriate indexes** for performance
-- Never store **plaintext passwords**
+- Use dedicated tables for sensitive data
+- Implement proper foreign key constraints
+- Include cascade deletion for cleanup
+- Add appropriate indexes for performance
+- Never store plaintext passwords
 
 ## 🧪 **Testing Requirements**
 
-### **Test Coverage**
-All contributions must include comprehensive tests:
+### **Comprehensive Tests**
+All contributions must include tests:
 
 ```typescript
-// Example test structure
 describe('Password History Validation', () => {
   it('should reject password that matches history', async () => {
-    // Arrange
     const mockAdapter = createMockAdapter();
     const testPassword = 'TestPassword123!';
     
-    // Act & Assert
     await expect(
       validatePasswordHistory(testPassword, 'user-123', mockAdapter)
     ).rejects.toThrow('Password cannot be one of the last');
@@ -108,31 +94,26 @@ describe('Password History Validation', () => {
 ```
 
 ### **Security Testing**
-- **Input validation** tests for all user inputs
-- **SQL injection** prevention verification
-- **Access control** boundary testing
-- **Error handling** security tests
+- Input validation tests for all user inputs
+- SQL injection prevention verification
+- Access control boundary testing
+- Error handling security tests
 
 ### **Running Tests**
 ```bash
-# Run all tests
-npm test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run security-specific tests
-npm run test:security
+npm test                  # All tests
+npm run test:coverage     # With coverage
+npm run test:security     # Security-specific tests
 ```
 
 ## 📝 **Pull Request Process**
 
 ### **Before Submitting**
-1. **Create an issue** first to discuss major changes
-2. **Fork the repository** and create a feature branch
-3. **Write comprehensive tests** for new functionality
-4. **Update documentation** as needed
-5. **Run security checks** and ensure all tests pass
+1. Create an issue first to discuss major changes
+2. Fork the repository and create a feature branch
+3. Write comprehensive tests for new functionality
+4. Update documentation as needed
+5. Run security checks and ensure all tests pass
 
 ### **PR Checklist**
 - [ ] Code follows security best practices
@@ -141,7 +122,7 @@ npm run test:security
 - [ ] Documentation updated (README, SECURITY.md)
 - [ ] No sensitive data exposed in logs or APIs
 - [ ] Proper error handling implemented
-- [ ] Database changes include proper migrations
+- [ ] Database changes include proper setup scripts
 
 ### **PR Template**
 ```markdown
@@ -202,110 +183,83 @@ What actually happens.
 ## Environment
 - Plugin version:
 - Better Auth version:
+- Database provider:
 - Node.js version:
-- Database type and version:
-
-## Security Impact
-- [ ] No security impact
-- [ ] Low security impact
-- [ ] Medium security impact
-- [ ] High security impact (email security team instead)
 ```
 
-## 💡 **Feature Requests**
+## 🔒 **Security Guidelines**
 
-### **Feature Request Template**
-```markdown
-## Feature Description
-Clear description of the proposed feature.
+### **Code Security**
+- Never log passwords or sensitive data
+- Use parameterized queries to prevent SQL injection
+- Implement proper error handling without information leakage
+- Follow OWASP security guidelines
+- Use secure random number generation
 
-## Use Case
-Why is this feature needed? What problem does it solve?
+### **Database Security**
+- Isolate sensitive data in dedicated tables
+- Use proper foreign key constraints
+- Implement cascade deletion
+- Add appropriate indexes
+- Never expose internal database structure
 
-## Proposed Solution
-How should this feature work?
-
-## Alternatives Considered
-What other solutions were considered?
-
-## Security Considerations
-How does this feature impact security?
-
-## PCI DSS Compliance
-How does this feature support PCI DSS requirements?
-```
-
-## 📚 **Documentation Guidelines**
+## 📚 **Documentation Standards**
 
 ### **Code Documentation**
 ```typescript
 /**
- * Validates that a new password doesn't match recent password history
- * @param password - The new password to validate (never logged)
- * @param userId - The user ID for history lookup
- * @param options - Configuration options for validation
- * @throws {Error} When password matches recent history
- * @security Implements PCI DSS 8.2.3 password history requirement
+ * Validates password against user's password history
+ * @param password - The new password to validate
+ * @param userId - The user's unique identifier
+ * @param adapter - Database adapter for querying history
+ * @throws Error if password matches recent history
  */
 async function validatePasswordHistory(
   password: string,
   userId: string,
-  options: PCIDSSOptions
+  adapter: DatabaseAdapter
 ): Promise<void> {
   // Implementation
 }
 ```
 
 ### **README Updates**
-- Keep security architecture explanations current
-- Update configuration examples
-- Maintain migration guides
-- Include performance considerations
-
-### **Security Documentation**
-- Document new security features in SECURITY.md
-- Update threat model when applicable
-- Maintain compliance mapping
-- Include security testing procedures
+- Keep examples current and working
+- Include security considerations
+- Update configuration options
+- Maintain backward compatibility notes
 
 ## 🔄 **Release Process**
 
 ### **Version Numbering**
-- **Major** (X.0.0): Breaking changes or major security updates
-- **Minor** (0.X.0): New features, non-breaking changes
-- **Patch** (0.0.X): Bug fixes, security patches
+- **Major**: Breaking changes (e.g., 1.0.0 → 2.0.0)
+- **Minor**: New features, backward compatible (e.g., 1.0.0 → 1.1.0)
+- **Patch**: Bug fixes, backward compatible (e.g., 1.0.0 → 1.0.1)
 
 ### **Release Checklist**
-- [ ] All tests pass
+- [ ] All tests passing
 - [ ] Security review completed
 - [ ] Documentation updated
-- [ ] Migration guides provided (if needed)
+- [ ] Migration guide updated (if needed)
+- [ ] Version bumped appropriately
 - [ ] Changelog updated
-- [ ] Version number bumped
-- [ ] Git tag created
 
-## 🏆 **Recognition**
+## 🤝 **Community Guidelines**
 
-Contributors who make significant improvements to security, compliance, or functionality will be recognized in:
-- CONTRIBUTORS.md file
-- Release notes
-- Project documentation
+### **Code of Conduct**
+- Be respectful and inclusive
+- Focus on constructive feedback
+- Help newcomers learn and contribute
+- Maintain professional communication
 
-## 📞 **Getting Help**
-
-- **General questions**: Open a GitHub issue
-- **Security concerns**: Email security team
-- **Development help**: Join our Discord/Slack channel
-- **Documentation issues**: Open a documentation PR
-
-## 🔐 **Security Commitment**
-
-This project takes security seriously. All contributors are expected to:
-- Follow secure coding practices
-- Report security issues responsibly
-- Respect user privacy and data protection
-- Maintain PCI DSS compliance standards
+### **Getting Help**
+- Check existing issues and documentation first
+- Ask questions in GitHub discussions
+- Provide context and examples when asking for help
+- Share knowledge and help others
 
 ---
 
-Thank you for contributing to Better Auth PCI DSS Plugin! Your efforts help make authentication more secure for everyone. 🚀 
+> **🔐 Security First**: All contributions must prioritize security. When in doubt, choose the more secure approach and document security considerations.
+
+> **📋 Quality**: We value well-tested, documented code over quick fixes. Take time to do it right. 

@@ -1,26 +1,20 @@
 # Migration Guide 🔄
 
-This guide helps you migrate to the latest version of the Better Auth PCI DSS Plugin or implement it for the first time.
+Complete guide for integrating the Better Auth PCI DSS Plugin into your project.
 
-## 📋 **Migration Overview**
+## 📋 **Plugin Features**
 
-### **What's New in v2.0**
-- **🔐 Enhanced Security Architecture**: Dedicated tables for sensitive data isolation
-- **📊 Advanced Monitoring**: Security event tracking and alerting
-- **🛡️ Production Features**: Rate limiting, audit trails, data retention policies
-- **⚡ Performance Optimizations**: Improved database queries and indexing
-- **🔧 Flexible Configuration**: Optional security features you can enable incrementally
-
-### **Breaking Changes**
-- **Database Schema**: New dedicated tables replace user table extensions
-- **Configuration**: New optional `security` configuration object
-- **Dependencies**: Requires bcrypt for password hashing
+- **🔐 Security Architecture**: Dedicated tables isolate sensitive data from API exposure
+- **📊 Advanced Monitoring**: Security event tracking, alerting, and audit trails
+- **🛡️ Enterprise Features**: Rate limiting, data retention, compliance reporting
+- **⚡ Performance**: Optimized queries and proper database indexing
+- **🔧 Flexible Config**: Optional security features for incremental adoption
 
 ---
 
 ## 🚀 **Fresh Installation**
 
-### **1. Install the Plugin**
+### **1. Install**
 ```bash
 npm install better-auth-pci-dss-plugin bcrypt
 npm install --save-dev @types/bcrypt
@@ -33,7 +27,7 @@ import { pciDssPasswordPolicy } from 'better-auth-pci-dss-plugin';
 
 export const auth = betterAuth({
   database: {
-    provider: "postgresql", // or your database provider
+    provider: "postgresql",
     url: process.env.DATABASE_URL,
   },
   plugins: [
@@ -47,11 +41,11 @@ export const auth = betterAuth({
 });
 ```
 
-### **3. Database Migration**
-The plugin will automatically create these tables:
+### **3. Database Tables**
+Plugin automatically creates:
 
 ```sql
--- 🔐 Password history (ultra-sensitive data)
+-- Password history (ultra-sensitive data)
 CREATE TABLE "pciPasswordHistory" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "userId" UUID NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
@@ -59,7 +53,7 @@ CREATE TABLE "pciPasswordHistory" (
   "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 📋 User metadata (operational data)
+-- User metadata (operational data)
 CREATE TABLE "pciUserMetadata" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "userId" UUID UNIQUE NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
@@ -70,7 +64,7 @@ CREATE TABLE "pciUserMetadata" (
   "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 📝 Audit log (optional - when auditTrail: true)
+-- Audit log (optional - when auditTrail: true)
 CREATE TABLE "pciAuditLog" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "userId" UUID NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
@@ -82,9 +76,9 @@ CREATE TABLE "pciAuditLog" (
 );
 ```
 
-### **4. Recommended Indexes**
+### **4. Performance Indexes**
 ```sql
--- Performance optimization indexes
+-- Essential indexes for performance
 CREATE INDEX "idx_pci_password_history_user_created" 
 ON "pciPasswordHistory"("userId", "createdAt" DESC);
 
@@ -104,9 +98,9 @@ ON "pciAuditLog"("eventType", "timestamp" DESC);
 
 ---
 
-## 🔄 **Migrating from v1.x**
+## 🔄 **Adding to Existing Better Auth Project**
 
-### **Step 1: Backup Your Database**
+### **Step 1: Backup Database**
 ```bash
 # PostgreSQL
 pg_dump your_database > backup_$(date +%Y%m%d_%H%M%S).sql
@@ -115,49 +109,49 @@ pg_dump your_database > backup_$(date +%Y%m%d_%H%M%S).sql
 mysqldump your_database > backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
-### **Step 2: Update Dependencies**
+### **Step 2: Install Plugin**
 ```bash
-npm install better-auth-pci-dss-plugin@latest bcrypt
+npm install better-auth-pci-dss-plugin bcrypt
 npm install --save-dev @types/bcrypt
 ```
 
-### **Step 3: Update Configuration**
+### **Step 3: Update Better Auth Configuration**
 ```typescript
-// OLD v1.x configuration
-const plugin = pciDssPasswordPolicy({
-  passwordHistoryCount: 4,
-  passwordChangeIntervalDays: 90,
-  inactiveAccountDeactivationDays: 180,
-  forcePasswordChangeOnFirstLogin: true,
+// Before: Basic Better Auth setup
+export const auth = betterAuth({
+  database: {
+    provider: "postgresql",
+    url: process.env.DATABASE_URL,
+  },
+  // ... other config
 });
 
-// NEW v2.x configuration (backward compatible)
-const plugin = pciDssPasswordPolicy({
-  passwordHistoryCount: 4,
-  passwordChangeIntervalDays: 90,
-  inactiveAccountDeactivationDays: 180,
-  forcePasswordChangeOnFirstLogin: true,
-  
-  // Optional: Add security features incrementally
-  security: {
-    // Start with basic logging
-    logger: console, // or your preferred logger
-    
-    // Enable as needed
-    auditTrail: false,
-    metrics: {
-      trackPasswordChanges: true,
-    },
+// After: With PCI DSS plugin
+export const auth = betterAuth({
+  database: {
+    provider: "postgresql",
+    url: process.env.DATABASE_URL,
   },
+  plugins: [
+    pciDssPasswordPolicy({
+      passwordHistoryCount: 4,
+      passwordChangeIntervalDays: 90,
+      inactiveAccountDeactivationDays: 180,
+      forcePasswordChangeOnFirstLogin: true,
+    }),
+  ],
+  // ... other config
 });
 ```
 
-### **Step 4: Database Migration Script**
+### **Step 4: Database Setup**
 
-**⚠️ IMPORTANT**: Run this migration script carefully in a maintenance window.
+**⚠️ CRITICAL**: Run in maintenance window with database backup.
 
 ```sql
--- Step 4a: Create new tables
+-- Plugin will automatically create these tables on first run
+-- But you can create them manually for controlled deployment:
+
 CREATE TABLE "pciPasswordHistory" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "userId" UUID NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
@@ -175,401 +169,244 @@ CREATE TABLE "pciUserMetadata" (
   "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Step 4b: Migrate existing data (if you had v1.x data in user table)
--- WARNING: Adjust column names based on your v1.x implementation
-
--- Migrate password history (if stored as array in user table)
-DO $$
-DECLARE
-  user_record RECORD;
-  history_entry TEXT;
-BEGIN
-  FOR user_record IN 
-    SELECT id, "passwordHistory", "lastPasswordChange", "forcePasswordChange", "lastLoginDate"
-    FROM "user" 
-    WHERE "passwordHistory" IS NOT NULL
-  LOOP
-    -- Migrate password history entries
-    IF user_record."passwordHistory" IS NOT NULL THEN
-      FOREACH history_entry IN ARRAY user_record."passwordHistory"
-      LOOP
-        INSERT INTO "pciPasswordHistory" ("userId", "passwordHash", "createdAt")
-        VALUES (
-          user_record.id, 
-          history_entry, 
-          COALESCE(user_record."lastPasswordChange", NOW())
-        );
-      END LOOP;
-    END IF;
-    
-    -- Migrate user metadata
-    INSERT INTO "pciUserMetadata" (
-      "userId", 
-      "lastPasswordChange", 
-      "forcePasswordChange", 
-      "lastLoginDate",
-      "createdAt",
-      "updatedAt"
-    ) VALUES (
-      user_record.id,
-      user_record."lastPasswordChange",
-      COALESCE(user_record."forcePasswordChange", false),
-      user_record."lastLoginDate",
-      NOW(),
-      NOW()
-    ) ON CONFLICT ("userId") DO NOTHING;
-  END LOOP;
-END $$;
-
--- Step 4c: Clean up old columns (ONLY after verifying migration worked)
--- UNCOMMENT THESE LINES AFTER TESTING:
--- ALTER TABLE "user" DROP COLUMN IF EXISTS "passwordHistory";
--- ALTER TABLE "user" DROP COLUMN IF EXISTS "lastPasswordChange";
--- ALTER TABLE "user" DROP COLUMN IF EXISTS "forcePasswordChange";
--- ALTER TABLE "user" DROP COLUMN IF EXISTS "lastLoginDate";
-
--- Step 4d: Add performance indexes
+-- Create performance indexes
 CREATE INDEX "idx_pci_password_history_user_created" 
 ON "pciPasswordHistory"("userId", "createdAt" DESC);
 
 CREATE INDEX "idx_pci_user_metadata_user" 
 ON "pciUserMetadata"("userId");
 
-CREATE INDEX "idx_pci_password_history_created" 
-ON "pciPasswordHistory"("createdAt");
+-- Initialize metadata for existing users (optional)
+INSERT INTO "pciUserMetadata" ("userId", "createdAt", "updatedAt")
+SELECT id, NOW(), NOW() FROM "user"
+ON CONFLICT ("userId") DO NOTHING;
 ```
 
-### **Step 5: Verification Script**
-```sql
--- Verify migration success
-SELECT 
-  u.id as user_id,
-  u.email,
-  m.lastPasswordChange,
-  m.forcePasswordChange,
-  COUNT(h.id) as password_history_count
-FROM "user" u
-LEFT JOIN "pciUserMetadata" m ON u.id = m."userId"
-LEFT JOIN "pciPasswordHistory" h ON u.id = h."userId"
-GROUP BY u.id, u.email, m.lastPasswordChange, m.forcePasswordChange
-ORDER BY u.email;
+### **Step 5: Test Migration**
+```typescript
+// Test password change functionality
+try {
+  await auth.changePassword({
+    currentPassword: 'current123',
+    newPassword: 'new456',
+  });
+  console.log('✅ Password change working');
+} catch (error) {
+  console.error('❌ Password change failed:', error.message);
+}
 
--- Check for any orphaned data
-SELECT COUNT(*) as orphaned_metadata 
-FROM "pciUserMetadata" m 
-WHERE NOT EXISTS (SELECT 1 FROM "user" u WHERE u.id = m."userId");
-
-SELECT COUNT(*) as orphaned_history 
-FROM "pciPasswordHistory" h 
-WHERE NOT EXISTS (SELECT 1 FROM "user" u WHERE u.id = h."userId");
+// Test history validation
+try {
+  await auth.changePassword({
+    currentPassword: 'new456',
+    newPassword: 'current123', // Should fail - reusing password
+  });
+  console.error('❌ History validation not working');
+} catch (error) {
+  console.log('✅ History validation working:', error.message);
+}
 ```
 
 ---
 
-## 🔐 **Advanced Security Migration**
+## 🛡️ **Advanced Security Setup**
 
-### **Enabling Security Features Incrementally**
-
-#### **Phase 1: Basic Monitoring**
+### **Gradual Feature Adoption**
 ```typescript
-security: {
-  logger: winston.createLogger({
-    transports: [
-      new winston.transports.File({ filename: 'security.log' })
-    ]
-  }),
-  metrics: {
-    trackPasswordChanges: true,
-    trackHistoryViolations: true,
-  },
-}
-```
-
-#### **Phase 2: Rate Limiting**
-```typescript
-security: {
-  // ... previous config
-  rateLimit: {
-    enabled: true,
-    maxAttempts: 5,
-    windowMs: 15 * 60 * 1000, // 15 minutes
-  },
-}
-```
-
-#### **Phase 3: Full Monitoring**
-```typescript
-security: {
-  // ... previous config
-  auditTrail: true,
-  alerts: {
-    passwordHistoryViolations: {
-      threshold: 3,
-      timeWindow: '1 hour',
-      action: 'alert',
-      callback: async (event) => {
-        await notifySecurityTeam(event);
+export const auth = betterAuth({
+  plugins: [
+    pciDssPasswordPolicy({
+      // Core requirements
+      passwordHistoryCount: 4,
+      passwordChangeIntervalDays: 90,
+      inactiveAccountDeactivationDays: 180,
+      forcePasswordChangeOnFirstLogin: true,
+      
+      // Add security features incrementally
+      security: {
+        // Phase 1: Basic logging
+        logger: winston.createLogger({
+          level: 'info',
+          format: winston.format.json(),
+          transports: [
+            new winston.transports.File({ filename: 'security.log' }),
+          ],
+        }),
+        
+        // Phase 2: Add metrics
+        metrics: {
+          trackPasswordChanges: true,
+          trackHistoryViolations: true,
+        },
+        
+        // Phase 3: Add rate limiting
+        rateLimit: {
+          enabled: true,
+          maxAttempts: 3,
+          windowMs: 15 * 60 * 1000, // 15 minutes
+        },
+        
+        // Phase 4: Add audit trail
+        auditTrail: true,
+        
+        // Phase 5: Add alerting
+        alerts: {
+          passwordHistoryViolations: {
+            threshold: 3,
+            timeWindow: '1 hour',
+            callback: async (event) => {
+              await sendSecurityAlert('Password History Violation', event);
+            },
+          },
+        },
       },
-    },
-  },
-  dataRetention: {
-    passwordHistory: {
-      retainCount: 12,
-      maxAge: '2 years',
-    },
-    auditLogs: {
-      retainPeriod: '7 years',
-      cleanupInterval: '1 day',
-    },
-  },
-}
-```
-
----
-
-## 🛠️ **Frontend Integration Updates**
-
-### **Checking User Security Status**
-```typescript
-// New API to check user security requirements
-async function checkUserSecurityStatus(userId: string) {
-  const userMetadata = await db.pciUserMetadata.findUnique({
-    where: { userId }
-  });
-  
-  return {
-    forcePasswordChange: userMetadata?.forcePasswordChange || false,
-    lastPasswordChange: userMetadata?.lastPasswordChange,
-    passwordAge: userMetadata?.lastPasswordChange 
-      ? Math.floor((Date.now() - new Date(userMetadata.lastPasswordChange).getTime()) / (1000 * 60 * 60 * 24))
-      : null,
-  };
-}
-
-// Frontend usage
-const userStatus = await checkUserSecurityStatus(user.id);
-if (userStatus.forcePasswordChange) {
-  // Redirect to password change page
-  router.push('/auth/change-password?required=true');
-}
-```
-
-### **Password Change Form Updates**
-```tsx
-// React component example
-function PasswordChangeForm() {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      await auth.changePassword({ password });
-      // Success - redirect or show success message
-    } catch (err) {
-      // Handle new error messages
-      if (err.message.includes('cannot be one of the last')) {
-        setError('Password cannot be one of your recent passwords');
-      } else if (err.message.includes('Too many password change attempts')) {
-        setError('Too many attempts. Please try again later.');
-      } else {
-        setError('Password change failed. Please try again.');
-      }
-    }
-  };
-  
-  return (
-    <form onSubmit={handleSubmit}>
-      <input 
-        type="password" 
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="New password"
-      />
-      {error && <div className="error">{error}</div>}
-      <button type="submit">Change Password</button>
-    </form>
-  );
-}
-```
-
----
-
-## 📊 **Monitoring & Alerting Setup**
-
-### **Security Dashboard Integration**
-```typescript
-// Example metrics collection
-export async function getSecurityMetrics(timeRange: '24h' | '7d' | '30d') {
-  const startDate = getDateFromRange(timeRange);
-  
-  const [passwordChanges, violations, auditEvents] = await Promise.all([
-    db.pciPasswordHistory.count({
-      where: { createdAt: { gte: startDate } }
     }),
-    
-    db.pciAuditLog.count({
-      where: { 
-        eventType: 'password_history_violation',
-        timestamp: { gte: startDate }
-      }
-    }),
-    
-    db.pciAuditLog.groupBy({
-      by: ['eventType'],
-      where: { timestamp: { gte: startDate } },
-      _count: true,
-    }),
-  ]);
-  
-  return {
-    passwordChanges,
-    violations,
-    auditEvents,
-    alerts: await getActiveAlerts(startDate),
-  };
-}
-```
-
-### **Alert Configuration**
-```typescript
-// Slack/Teams webhook integration
-async function notifySecurityTeam(event: SecurityEvent) {
-  const webhook = process.env.SECURITY_WEBHOOK_URL;
-  
-  await fetch(webhook, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text: `🚨 Security Alert: ${event.type}`,
-      blocks: [
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `*Security Event:* ${event.type}\n*User ID:* ${event.userId}\n*Timestamp:* ${event.timestamp}`
-          }
-        }
-      ]
-    })
-  });
-}
-```
-
----
-
-## 🧪 **Testing Your Migration**
-
-### **Unit Tests**
-```bash
-npm test
-```
-
-### **Integration Tests**
-```typescript
-// Test password history enforcement
-describe('Password History Migration', () => {
-  it('should enforce password history after migration', async () => {
-    const userId = 'test-user-id';
-    const password = 'newPassword123!';
-    
-    // Change password first time
-    await auth.changePassword({ userId, password });
-    
-    // Try to use same password again - should fail
-    await expect(
-      auth.changePassword({ userId, password })
-    ).rejects.toThrow('cannot be one of the last');
-  });
+  ],
 });
 ```
 
-### **Manual Testing Checklist**
-- [ ] Password history validation works
-- [ ] Force password change triggers correctly
-- [ ] Security logging captures events
-- [ ] Rate limiting blocks excessive attempts
-- [ ] Database constraints prevent orphaned data
-- [ ] Performance is acceptable with new schema
-
----
-
-## 🚨 **Rollback Plan**
-
-If you need to rollback the migration:
-
-### **Step 1: Stop Application**
-```bash
-# Stop your application servers
-pm2 stop all  # or your process manager
-```
-
-### **Step 2: Restore Database**
-```bash
-# Restore from backup
-psql your_database < backup_YYYYMMDD_HHMMSS.sql
-```
-
-### **Step 3: Revert Code**
-```bash
-# Revert to previous version
-npm install better-auth-pci-dss-plugin@1.x.x
-git checkout previous-working-commit
-```
-
-### **Step 4: Restart Application**
-```bash
-pm2 start all
-```
-
----
-
-## 📞 **Support & Troubleshooting**
-
-### **Common Issues**
-
-#### **Migration Fails with Foreign Key Errors**
-```sql
--- Check for orphaned data before migration
-SELECT u.id FROM "user" u 
-WHERE NOT EXISTS (SELECT 1 FROM "pciUserMetadata" m WHERE m."userId" = u.id);
-```
-
-#### **Performance Issues After Migration**
-```sql
--- Ensure indexes are created
-\d+ "pciPasswordHistory"  -- Should show indexes
-\d+ "pciUserMetadata"     -- Should show indexes
-
--- Check query performance
-EXPLAIN ANALYZE 
-SELECT * FROM "pciPasswordHistory" 
-WHERE "userId" = 'some-uuid' 
-ORDER BY "createdAt" DESC LIMIT 5;
-```
-
-#### **Security Events Not Logging**
+### **Production Security Monitoring**
 ```typescript
-// Verify logger configuration
-const testLogger = {
-  info: (msg, meta) => console.log('INFO:', msg, meta),
-  warn: (msg, meta) => console.warn('WARN:', msg, meta),
-  error: (msg, meta) => console.error('ERROR:', msg, meta),
-};
+const securityLogger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: 'security-events.log' }),
+    new winston.transports.Console({ level: 'warn' }),
+  ],
+});
 
-// Test with simple logger first
-security: { logger: testLogger }
+// Custom security alert handler
+async function sendSecurityAlert(type: string, event: any) {
+  const alertData = {
+    type,
+    timestamp: new Date().toISOString(),
+    userId: event.userId,
+    metadata: event.metadata,
+    severity: event.severity || 'medium',
+  };
+  
+  // Send to security team
+  await fetch(process.env.SECURITY_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(alertData),
+  });
+}
 ```
-
-### **Getting Help**
-- 📖 [Documentation](./README.md)
-- 🔒 [Security Guide](./SECURITY.md)
-- 🤝 [Contributing](./CONTRIBUTING.md)
-- 🐛 [Issues](https://github.com/your-repo/issues)
 
 ---
 
-> **⚠️ Important**: Always test migrations in a staging environment first. Keep database backups and have a rollback plan ready before migrating production systems.
+## 🚨 **Troubleshooting**
 
-> **🔐 Security Note**: The new architecture provides significantly better security by isolating sensitive data from user-facing APIs. The migration is worth the effort for enhanced security posture. 
+### **Common Migration Issues**
+
+**Issue**: Foreign key constraint errors
+```sql
+-- Solution: Ensure user table exists and has proper structure
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'user' AND column_name = 'id';
+```
+
+**Issue**: Plugin tables not created automatically
+```sql
+-- Solution: Check Better Auth database adapter permissions
+-- Ensure the database user has CREATE TABLE permissions
+GRANT CREATE ON DATABASE your_database TO your_db_user;
+```
+
+**Issue**: Performance issues with large user base
+```sql
+-- Solution: Ensure indexes are created and optimized
+\d+ "pciPasswordHistory"  -- Check if indexes exist
+ANALYZE "pciPasswordHistory"; -- Update table statistics
+```
+
+### **Rollback Procedure**
+```sql
+-- Emergency rollback (if needed)
+BEGIN;
+
+-- Drop plugin tables (ONLY if rollback is necessary)
+DROP TABLE IF EXISTS "pciAuditLog";
+DROP TABLE IF EXISTS "pciPasswordHistory";
+DROP TABLE IF EXISTS "pciUserMetadata";
+
+COMMIT;
+
+-- Remove plugin from Better Auth configuration
+-- Restart application
+```
+
+---
+
+## 🔄 **Different Database Providers**
+
+### **PostgreSQL**
+```typescript
+// Already shown above - default configuration
+```
+
+### **MySQL**
+```sql
+-- MySQL equivalent tables
+CREATE TABLE `pciPasswordHistory` (
+  `id` VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+  `userId` VARCHAR(36) NOT NULL,
+  `passwordHash` VARCHAR(255) NOT NULL,
+  `createdAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+
+CREATE INDEX `idx_pci_password_history_user_created` 
+ON `pciPasswordHistory`(`userId`, `createdAt` DESC);
+```
+
+### **SQLite**
+```sql
+-- SQLite equivalent tables
+CREATE TABLE "pciPasswordHistory" (
+  "id" TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  "userId" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+  "passwordHash" TEXT NOT NULL,
+  "createdAt" DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX "idx_pci_password_history_user_created" 
+ON "pciPasswordHistory"("userId", "createdAt" DESC);
+```
+
+---
+
+## ✅ **Post-Migration Checklist**
+
+- [ ] Database backup completed successfully
+- [ ] Plugin tables created with proper constraints
+- [ ] Performance indexes created
+- [ ] Application tests passing
+- [ ] Security features configured appropriately
+- [ ] Monitoring and alerting active (if enabled)
+- [ ] Documentation updated for team
+- [ ] Production deployment tested in staging
+
+---
+
+## 📞 **Support**
+
+**Migration Issues**: Open GitHub issue with:
+- Better Auth version
+- Database provider and version
+- Plugin configuration
+- Complete error message
+- Relevant database schema
+
+**Security Questions**: Review [SECURITY.md](./SECURITY.md) first, then contact security team.
+
+---
+
+> **⚠️ Critical**: Always test migration in staging environment first. Keep database backups. Plan maintenance window for production deployment. 

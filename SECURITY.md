@@ -1,187 +1,138 @@
 # Security Best Practices 🔐
 
-This document outlines security best practices for implementing and maintaining the Better Auth PCI DSS Plugin in production environments.
+Production security guidelines for the Better Auth PCI DSS Plugin.
 
-## 🛡️ **Core Security Principles**
+## 🛡️ **Core Principles**
 
-### **Defense in Depth**
-- Multiple layers of security controls
-- No single point of failure
-- Assume breach scenarios and plan accordingly
-
-### **Principle of Least Privilege**
-- Grant minimum necessary permissions
-- Regularly audit and review access rights
-- Use role-based access control (RBAC)
-
-### **Data Minimization**
-- Store only required data
-- Implement data retention policies
-- Regular cleanup of unnecessary historical data
+- **Defense in Depth**: Multiple security layers, no single point of failure
+- **Least Privilege**: Minimum necessary permissions, regular access audits
+- **Data Minimization**: Store only required data, implement retention policies
 
 ## 🔒 **Password Security**
 
-### **Hash Algorithm Standards**
+### **Hashing Standards**
 ```typescript
-// ✅ Recommended: Use bcrypt with appropriate cost factor
-const saltRounds = 12; // Adjust based on hardware capabilities
-const hashedPassword = await bcrypt.hash(password, saltRounds);
+// ✅ Use bcrypt with cost factor 12+
+const hashedPassword = await bcrypt.hash(password, 12);
 
-// ❌ Never use: Plain text, MD5, SHA1, or weak algorithms
+// ❌ Never use: plaintext, MD5, SHA1, weak algorithms
 ```
 
-### **Password Policy Enforcement**
-```typescript
-// Implement comprehensive password requirements
-const passwordPolicy = {
-  minLength: 12,
-  requireUppercase: true,
-  requireLowercase: true,
-  requireNumbers: true,
-  requireSpecialChars: true,
-  prohibitCommonPasswords: true,
-  prohibitUserInfo: true, // No name, email in password
-};
-```
-
-### **Secure Password Storage**
-- **Never log passwords** in any form (plaintext or hashed)
-- **Separate sensitive data** from user profiles
-- **Use dedicated tables** for password history
-- **Implement proper database encryption** at rest
+### **Storage Requirements**
+- Never log passwords (plaintext or hashed)
+- Use dedicated tables for password history
+- Implement database encryption at rest
+- Separate sensitive data from user profiles
 
 ## 🗄️ **Database Security**
 
 ### **Table Isolation**
 ```sql
--- ✅ Correct: Dedicated tables for sensitive data
+-- ✅ Correct: Isolated sensitive data
 CREATE TABLE pciPasswordHistory (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  userId UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY,
+  userId UUID REFERENCES users(id) ON DELETE CASCADE,
   passwordHash VARCHAR(255) NOT NULL,
-  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  INDEX idx_user_created (userId, createdAt DESC)
+  createdAt TIMESTAMP WITH TIME ZONE
 );
 
 -- ❌ Wrong: Sensitive data in main user table
 ALTER TABLE users ADD COLUMN password_history TEXT[];
 ```
 
-### **Database Access Control**
+### **Access Control**
 ```sql
--- Create dedicated database user for application
+-- Dedicated database user with minimal permissions
 CREATE USER pci_app_user WITH PASSWORD 'strong_random_password';
 
--- Grant minimal required permissions
 GRANT SELECT, INSERT, UPDATE, DELETE ON pciPasswordHistory TO pci_app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON pciUserMetadata TO pci_app_user;
-GRANT SELECT, UPDATE ON users TO pci_app_user; -- Read-only on main user table
+GRANT SELECT, UPDATE ON users TO pci_app_user; -- Read-only on main table
 
--- Revoke unnecessary permissions
 REVOKE ALL ON schema_migrations FROM pci_app_user;
-REVOKE ALL ON sensitive_admin_tables FROM pci_app_user;
 ```
-
-### **Database Encryption**
-- **Enable encryption at rest** for all database storage
-- **Use TLS/SSL** for all database connections
-- **Encrypt sensitive columns** with application-level encryption if required
-
-## 🌐 **Network Security**
 
 ### **Connection Security**
 ```typescript
-// ✅ Secure database connection
 const dbConfig = {
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  ssl: {
-    require: true,
-    rejectUnauthorized: true,
-    ca: fs.readFileSync('/path/to/ca-certificate.crt').toString(),
-  },
+  ssl: { require: true, rejectUnauthorized: true },
 };
 ```
 
-### **API Security**
-- **Rate limiting** on authentication endpoints
-- **IP whitelisting** for administrative functions
-- **Request size limits** to prevent DoS attacks
-- **CORS configuration** for cross-origin requests
+## 🌐 **Network & API Security**
+
+### **Essential Controls**
+- Rate limiting on authentication endpoints
+- IP whitelisting for admin functions
+- Request size limits (DoS prevention)
+- CORS configuration for cross-origin requests
+- HTTPS enforcement for all connections
+
+### **Security Headers**
+```typescript
+app.use((req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+```
 
 ## 🔐 **Secrets Management**
 
 ### **Environment Variables**
 ```bash
-# ✅ Use strong, unique secrets
+# ✅ Strong, unique secrets
 BETTER_AUTH_SECRET=crypto_random_256_bit_key
 DB_PASSWORD=strong_unique_database_password
 ENCRYPTION_KEY=another_crypto_random_256_bit_key
 
-# ❌ Never use: Weak or default secrets
-BETTER_AUTH_SECRET=secret123
-DB_PASSWORD=password
+# ❌ Never use weak/default secrets
 ```
 
-### **Secret Rotation**
-```typescript
-// Implement regular secret rotation
-const secretRotationSchedule = {
-  authSecret: '90 days',
-  databasePassword: '180 days',
-  encryptionKeys: '365 days',
-};
+### **Secret Rotation Schedule**
+- Auth secrets: 90 days
+- Database passwords: 180 days
+- Encryption keys: 365 days
 
-// Use versioned secrets for zero-downtime rotation
-const currentSecret = process.env.BETTER_AUTH_SECRET_V2;
-const previousSecret = process.env.BETTER_AUTH_SECRET_V1;
-```
-
-## 📊 **Monitoring and Auditing**
+## 📊 **Monitoring & Auditing**
 
 ### **Security Event Logging**
 ```typescript
-// Log security-relevant events
 const securityLogger = {
-  passwordChangeAttempt: (userId: string, success: boolean) => {
+  passwordChangeAttempt: (userId: string, success: boolean, req: any) => {
     logger.info('Password change attempt', {
-      userId,
-      success,
+      userId, success,
       timestamp: new Date().toISOString(),
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
     });
   },
   
-  passwordHistoryViolation: (userId: string) => {
+  passwordHistoryViolation: (userId: string, req: any) => {
     logger.warn('Password history violation', {
       userId,
       timestamp: new Date().toISOString(),
       ipAddress: req.ip,
     });
   },
-  
-  forcePasswordChangeTriggered: (userId: string, reason: string) => {
-    logger.info('Force password change triggered', {
-      userId,
-      reason,
-      timestamp: new Date().toISOString(),
-    });
-  },
 };
 ```
 
-### **Metrics to Monitor**
+### **Critical Metrics**
 - Failed authentication attempts per user/IP
 - Password change frequency patterns
 - Force password change events
 - Database connection anomalies
 - Unusual access patterns
 
-### **Alerting Configuration**
+### **Alert Configuration**
 ```typescript
 const securityAlerts = {
   multipleFailedAttempts: {
@@ -206,28 +157,17 @@ const securityAlerts = {
 
 ## 🚀 **Production Deployment**
 
-### **Environment Checklist**
-- [ ] **HTTPS enforced** for all connections
-- [ ] **Database encryption** enabled
-- [ ] **Secrets properly managed** (not in code)
-- [ ] **Monitoring and logging** configured
-- [ ] **Backup and recovery** procedures tested
-- [ ] **Security headers** implemented
-- [ ] **Rate limiting** configured
-- [ ] **Error handling** doesn't leak sensitive information
-
-### **Security Headers**
-```typescript
-// Implement security headers
-app.use((req, res, next) => {
-  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  next();
-});
-```
+### **Pre-Deployment Checklist**
+- [ ] HTTPS enforced for all connections
+- [ ] Database encryption at rest enabled
+- [ ] Secrets properly managed (no hardcoded values)
+- [ ] Security logging configured and monitored
+- [ ] Rate limiting implemented
+- [ ] Error handling secure (no information leakage)
+- [ ] Backup procedures tested
+- [ ] Access controls configured
+- [ ] Security headers implemented
+- [ ] Monitoring and alerting active
 
 ### **Error Handling**
 ```typescript
@@ -235,76 +175,37 @@ app.use((req, res, next) => {
 try {
   await validatePasswordHistory(password, userId);
 } catch (error) {
-  // Log full error for debugging
   logger.error('Password validation error', { error, userId });
-  
-  // Return generic error to user
-  throw new Error('Password does not meet requirements');
+  throw new Error('Password does not meet requirements'); // Generic message
 }
 
-// ❌ Insecure: Exposing internal details
+// ❌ Insecure: exposing internal details
 catch (error) {
   throw new Error(`Database error: ${error.message}`);
 }
 ```
 
-## 📋 **Compliance Considerations**
+## 📋 **Compliance Requirements**
 
-### **PCI DSS Requirements**
-- **8.2.1**: Use strong cryptographic algorithms
-- **8.2.3**: Secure password history mechanism
-- **8.2.4**: Regular password changes enforced
-- **8.2.5**: First-time password must be changed
-- **8.2.6**: Password complexity requirements
+### **PCI DSS Implementation**
+- **8.2.1**: Strong cryptographic algorithms (bcrypt with cost factor 12+)
+- **8.2.3**: Secure password history mechanism (dedicated tables)
+- **8.2.4**: Regular password changes enforced (configurable intervals)
+- **8.2.5**: First-time password must be changed (force flag)
+- **8.2.6**: Password complexity requirements (configurable policies)
 
 ### **Data Retention**
 ```typescript
-// Implement compliant data retention
 const retentionPolicy = {
   passwordHistory: {
     retainCount: 12, // Last 12 passwords
-    maxAge: '2 years', // Absolute maximum retention
+    maxAge: '2 years', // Absolute maximum
   },
   
   auditLogs: {
     retainPeriod: '7 years', // Compliance requirement
-    archiveAfter: '2 years',
+    cleanupInterval: '1 day',
   },
-  
-  sessionData: {
-    maxAge: '24 hours',
-    cleanupInterval: '1 hour',
-  },
-};
-```
-
-### **Regular Security Tasks**
-```typescript
-// Scheduled security maintenance
-const securityTasks = {
-  daily: [
-    'cleanup_expired_sessions',
-    'review_failed_login_attempts',
-    'check_security_alerts',
-  ],
-  
-  weekly: [
-    'cleanup_old_password_history',
-    'review_access_logs',
-    'update_security_dashboards',
-  ],
-  
-  monthly: [
-    'security_vulnerability_scan',
-    'review_user_permissions',
-    'test_backup_procedures',
-  ],
-  
-  quarterly: [
-    'security_audit',
-    'penetration_testing',
-    'compliance_review',
-  ],
 };
 ```
 
@@ -314,36 +215,13 @@ const securityTasks = {
 1. **Data Breach**: Unauthorized access to sensitive data
 2. **Brute Force Attack**: Multiple failed login attempts
 3. **Privilege Escalation**: Unauthorized permission changes
-4. **Data Corruption**: Integrity violations in sensitive data
+4. **Data Corruption**: Integrity violations
 
 ### **Response Procedures**
-```typescript
-const incidentResponse = {
-  detection: {
-    automated_alerts: true,
-    monitoring_dashboards: true,
-    user_reports: true,
-  },
-  
-  containment: {
-    isolate_affected_systems: true,
-    revoke_compromised_credentials: true,
-    preserve_evidence: true,
-  },
-  
-  eradication: {
-    remove_threat_vectors: true,
-    patch_vulnerabilities: true,
-    update_security_controls: true,
-  },
-  
-  recovery: {
-    restore_from_backups: true,
-    verify_system_integrity: true,
-    monitor_for_recurring_issues: true,
-  },
-};
-```
+1. **Detection**: Automated alerts, monitoring dashboards
+2. **Containment**: Isolate systems, revoke credentials, preserve evidence
+3. **Eradication**: Remove threats, patch vulnerabilities, update controls
+4. **Recovery**: Restore from backups, verify integrity, monitor
 
 ## 🔍 **Security Testing**
 
@@ -356,44 +234,33 @@ snyk test
 # Dependency vulnerability scanning
 npm ls --audit-level moderate
 
-# Database security testing
-sqlmap -u "database_connection_string" --batch
-
-# SSL/TLS configuration testing
+# SSL/TLS testing
 testssl.sh yourdomain.com
 ```
 
-### **Penetration Testing Checklist**
-- [ ] Authentication bypass attempts
-- [ ] SQL injection testing
-- [ ] Cross-site scripting (XSS)
-- [ ] Cross-site request forgery (CSRF)
-- [ ] Session management testing
-- [ ] Input validation testing
-- [ ] Error handling testing
+### **Penetration Testing Areas**
+- Authentication bypass attempts
+- SQL injection testing
+- Cross-site scripting (XSS)
+- Session management testing
+- Input validation testing
+- Error handling security
 
 ## 📚 **Security Resources**
 
-### **Standards and Guidelines**
+### **Standards & Guidelines**
 - [OWASP Top 10](https://owasp.org/Top10/)
 - [PCI DSS Standards](https://www.pcisecuritystandards.org/)
 - [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)
-- [CIS Controls](https://www.cisecurity.org/controls/)
 
 ### **Security Tools**
 - **Static Analysis**: ESLint security plugins, Semgrep
-- **Dependency Scanning**: Snyk, npm audit, OWASP Dependency Check
+- **Dependency Scanning**: Snyk, npm audit
 - **Runtime Protection**: Helmet.js, express-rate-limit
-- **Monitoring**: Security event correlation tools, SIEM solutions
-
-### **Training and Awareness**
-- Regular security training for development team
-- Secure coding practices workshops
-- Incident response drills
-- Compliance training updates
+- **Monitoring**: SIEM solutions, security dashboards
 
 ---
 
-> **⚠️ Important**: This document provides general security guidelines. Always consult with security professionals and conduct regular security assessments for your specific environment and requirements.
+> **⚠️ Important**: These are general guidelines. Always consult security professionals and conduct regular assessments for your specific environment.
 
-> **🔄 Updates**: Review and update this document quarterly or after any security incidents or significant system changes.
+> **🔄 Updates**: Review and update this document quarterly or after security incidents.
