@@ -216,8 +216,11 @@ export function pciDssPasswordPolicy(
                 type: "password_change_attempt",
                 userId: user.id,
                 timestamp: new Date().toISOString(),
-                ipAddress: request?.headers?.["x-forwarded-for"] || request?.ip,
-                userAgent: request?.headers?.["user-agent"],
+                ipAddress:
+                  request?.headers?.get?.("x-forwarded-for") ||
+                  (request as any)?.ip ||
+                  undefined,
+                userAgent: request?.headers?.get?.("user-agent") || undefined,
               };
 
               if (security.metrics?.trackPasswordChanges) {
@@ -244,8 +247,11 @@ export function pciDssPasswordPolicy(
                       userId: user.id,
                       timestamp: new Date().toISOString(),
                       ipAddress:
-                        request?.headers?.["x-forwarded-for"] || request?.ip,
-                      userAgent: request?.headers?.["user-agent"],
+                        request?.headers?.get?.("x-forwarded-for") ||
+                        (request as any)?.ip ||
+                        undefined,
+                      userAgent:
+                        request?.headers?.get?.("user-agent") || undefined,
                     };
 
                     if (security.metrics?.trackHistoryViolations) {
@@ -319,7 +325,8 @@ export function pciDssPasswordPolicy(
       after: [
         {
           matcher: (ctx) =>
-            ctx.path === "/auth/login" || ctx.path === "/auth/register",
+            (ctx as any).path === "/auth/login" ||
+            (ctx as any).path === "/auth/register",
           handler: async (ctx) => {
             // @ts-ignore
             const { user, adapter, request } = ctx;
@@ -329,14 +336,17 @@ export function pciDssPasswordPolicy(
                 if (security.auditTrail) {
                   const loginEvent: SecurityEvent = {
                     type:
-                      ctx.path === "/auth/login"
+                      (ctx as any).path === "/auth/login"
                         ? "user_login"
                         : "user_register",
                     userId: user.id,
                     timestamp: new Date().toISOString(),
                     ipAddress:
-                      request?.headers?.["x-forwarded-for"] || request?.ip,
-                    userAgent: request?.headers?.["user-agent"],
+                      request?.headers?.get?.("x-forwarded-for") ||
+                      (request as any)?.ip ||
+                      undefined,
+                    userAgent:
+                      request?.headers?.get?.("user-agent") || undefined,
                   };
 
                   eventTracker.trackEvent(loginEvent);
@@ -451,7 +461,7 @@ export function pciDssPasswordPolicy(
           },
         },
         {
-          matcher: (ctx) => ctx.path === "/auth/change-password",
+          matcher: (ctx) => (ctx as any).path === "/auth/change-password",
           handler: async (ctx) => {
             // @ts-ignore
             const { user, adapter, input, request } = ctx;
@@ -524,8 +534,11 @@ export function pciDssPasswordPolicy(
                     userId: user.id,
                     timestamp: new Date().toISOString(),
                     ipAddress:
-                      request?.headers?.["x-forwarded-for"] || request?.ip,
-                    userAgent: request?.headers?.["user-agent"],
+                      request?.headers?.get?.("x-forwarded-for") ||
+                      (request as any)?.ip ||
+                      undefined,
+                    userAgent:
+                      request?.headers?.get?.("user-agent") || undefined,
                   };
 
                   eventTracker.trackEvent(changeEvent);
