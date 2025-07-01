@@ -11,7 +11,7 @@ Secure password policy plugin for Better Auth with **enterprise-grade security**
 ## ⚡ **Quick Start**
 
 ```bash
-npm install better-auth-pci-dss-plugin bcrypt
+npm install better-auth-pci-dss-plugin
 ```
 
 ```typescript
@@ -48,6 +48,29 @@ pciAuditLog: id, userId, eventType, timestamp, ipAddress, userAgent, metadata
 - ✅ **Force password change** (first login, expired passwords)
 - ✅ **Zero API exposure** (sensitive data never in user endpoints)
 - ✅ **Audit trail** (comprehensive security logging)
+
+### **🔐 Cryptographic Implementation**
+
+**Native Node.js Crypto** - Zero external dependencies, full better-auth compatibility:
+
+```typescript
+// Using Node.js crypto (same as better-auth core)
+import { pbkdf2, randomBytes } from 'crypto';
+
+// PBKDF2 with SHA512 (NIST recommended)
+- Algorithm: PBKDF2-SHA512
+- Salt: 256-bit cryptographically secure random
+- Iterations: 10,000 (industry standard)
+- Key Length: 512-bit derived key
+- Format: "salt:iterations:hash" (better-auth compatible)
+```
+
+**Security Benefits:**
+- ✅ **NIST Approved**: PBKDF2 is FIPS 140-2 compliant
+- ✅ **Perfect Integration**: Uses same crypto stack as better-auth
+- ✅ **Zero Dependencies**: No external crypto libraries needed
+- ✅ **Timing Attack Protection**: Constant-time comparison
+- ✅ **Migration Ready**: Seamless upgrade path from bcrypt
 
 ## 🛡️ **Advanced Security (Optional)**
 
@@ -164,11 +187,30 @@ npm install better-auth-pci-dss-plugin
 ```
 
 ### **PCI DSS Compliance**
-- ✅ **8.2.1**: Strong cryptographic algorithms (bcrypt)
+- ✅ **8.2.1**: Strong cryptographic algorithms (PBKDF2-SHA512, NIST approved)
 - ✅ **8.2.3**: Secure password history mechanism
 - ✅ **8.2.4**: Regular password changes enforced
 - ✅ **8.2.5**: First-time password must be changed
 - ✅ **8.2.6**: Password complexity requirements support
+
+### **📋 Migration from Previous Versions**
+
+**Breaking Change Notice**: Version 2.0+ uses Node.js crypto instead of bcrypt.
+
+```typescript
+// For existing bcrypt installations, passwords will need reset
+// See MIGRATION.md for complete migration guide
+
+// Old bcrypt hashes are gracefully handled:
+// 1. User attempts login with bcrypt hash → fails securely
+// 2. Force password reset → new PBKDF2 hash created
+// 3. Future logins use new secure hash format
+```
+
+**Migration Benefits:**
+- 🚀 **Faster**: Node.js crypto is optimized for server environments
+- 🔗 **Better Integration**: Same crypto stack as better-auth core
+- 📦 **Smaller Bundle**: No external dependencies
 
 ## 📚 **Documentation**
 

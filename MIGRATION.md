@@ -2,6 +2,57 @@
 
 Complete guide for integrating the Better Auth PCI DSS Plugin into your project.
 
+## 🚨 **BREAKING CHANGE - Version 2.0+**
+
+### **⚡ bcrypt → Node.js Crypto Migration**
+
+**Version 2.0+** replaces bcrypt with Node.js native crypto for better-auth compatibility.
+
+#### **Why This Change?**
+- ✅ **Zero Dependencies**: No external crypto libraries needed
+- ✅ **Better Integration**: Uses same crypto stack as better-auth core
+- ✅ **NIST Compliant**: PBKDF2-SHA512 is FIPS 140-2 approved
+- ✅ **Performance**: Optimized for server environments
+- ✅ **Security**: Same security level, better ecosystem alignment
+
+#### **Migration Impact**
+```typescript
+// ❌ OLD (v1.x): bcrypt dependency
+npm install better-auth-pci-dss-plugin bcrypt @types/bcrypt
+
+// ✅ NEW (v2.0+): Zero dependencies
+npm install better-auth-pci-dss-plugin
+```
+
+#### **Password Hash Migration**
+**IMPORTANT**: Existing bcrypt hashes are **incompatible** with new PBKDF2 implementation.
+
+**Migration Strategy:**
+1. **Upgrade plugin** to v2.0+
+2. **Existing users** will need to reset passwords
+3. **New passwords** use secure PBKDF2-SHA512 format
+4. **Migration is automatic** - no database changes needed
+
+```typescript
+// Migration behavior:
+// 1. User tries login with old bcrypt hash → fails securely
+// 2. User resets password → new PBKDF2 hash created  
+// 3. Future logins use new secure hash format
+
+// Hash format change:
+// OLD: bcrypt hash (60 chars, $2b$ prefix)
+// NEW: "salt:iterations:hash" (PBKDF2-SHA512, better-auth compatible)
+```
+
+#### **Production Migration Checklist**
+- [ ] **Backup database** before upgrading
+- [ ] **Test in staging** first
+- [ ] **Notify users** about password reset requirement
+- [ ] **Update dependencies** (`npm update better-auth-pci-dss-plugin`)
+- [ ] **Monitor logs** for migration issues
+
+---
+
 ## 📋 **Plugin Features**
 
 - **🔐 Security Architecture**: Dedicated tables isolate sensitive data from API exposure
@@ -16,8 +67,7 @@ Complete guide for integrating the Better Auth PCI DSS Plugin into your project.
 
 ### **1. Install**
 ```bash
-npm install better-auth-pci-dss-plugin bcrypt
-npm install --save-dev @types/bcrypt
+npm install better-auth-pci-dss-plugin
 ```
 
 ### **2. Basic Configuration**
@@ -111,8 +161,7 @@ mysqldump your_database > backup_$(date +%Y%m%d_%H%M%S).sql
 
 ### **Step 2: Install Plugin**
 ```bash
-npm install better-auth-pci-dss-plugin bcrypt
-npm install --save-dev @types/bcrypt
+npm install better-auth-pci-dss-plugin
 ```
 
 ### **Step 3: Update Better Auth Configuration**
