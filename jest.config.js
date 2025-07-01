@@ -9,7 +9,10 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   transformIgnorePatterns: [
-    'node_modules/(?!(@better-auth-kit/tests|better-auth)/)',
+    'node_modules/(?!(@better-auth-kit|better-auth|better-call)/)',
   ],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testTimeout: 30000,
+  maxWorkers: 1,
 };
 

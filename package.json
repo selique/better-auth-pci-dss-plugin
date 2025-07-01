@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "jest --no-cache --passWithNoTests",
+    "test": "node --experimental-vm-modules --experimental-modules ./node_modules/jest/bin/jest.js --no-cache --passWithNoTests",
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
@@ -44,8 +44,9 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.4",
     "better-auth": "^1.2.10",
-    "better-sqlite3": "^12.1.1",
+    "better-sqlite3": "^12.2.0",
     "jest": "^30.0.2",
+    "kysely": "^0.28.2",
     "ts-jest": "^29.4.0",
     "vitest": "^3.2.4"
   }
