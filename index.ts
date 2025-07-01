@@ -2,7 +2,11 @@
 import { BetterAuthPlugin } from 'better-auth';
 // @ts-ignore
 import { InputContext, EndpointContext, Middleware } from 'better-call';
-import * as bcrypt from 'bcrypt';
+import { pbkdf2, randomBytes } from 'crypto';
+import { promisify } from 'util';
+
+// Promisify crypto functions for async usage - same pattern as better-auth
+const pbkdf2Async = promisify(pbkdf2);
 
 interface SecurityLogger {
   info: (message: string, meta?: any) => void;
@@ -96,12 +100,32 @@ function parseTimeWindow(timeWindow: string): number {
   }
 }
 
-// Helper function to compare a password with a hash
+// Helper function to compare a password with a hash using Node.js crypto (same as better-auth)
 async function comparePassword(
   password: string,
   hash: string
 ): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+  try {
+    // Parse the hash format: "salt:iterations:hash" (similar to better-auth pattern)
+    const parts = hash.split(':');
+    if (parts.length !== 3) {
+      return false; // Invalid hash format
+    }
+    
+    const [saltHex, iterationsStr, hashHex] = parts;
+    const salt = Buffer.from(saltHex, 'hex');
+    const iterations = parseInt(iterationsStr, 10);
+    const expectedHash = Buffer.from(hashHex, 'hex');
+    
+    // Derive key using same parameters
+    const derivedKey = await pbkdf2Async(password, salt, iterations, 64, 'sha512');
+    
+    // Constant-time comparison (security best practice)
+    return derivedKey.equals(expectedHash);
+  } catch (error) {
+    // If verification fails, return false (invalid hash or wrong password)
+    return false;
+  }
 }
 
 // Security event tracker
@@ -468,8 +492,16 @@ export function pciDssPasswordPolicy(
             const password = input?.password;
             if (user && password) {
               try {
-                const saltRounds = 10;
-                const hashedPassword = await bcrypt.hash(password, saltRounds);
+                // Use Node.js crypto PBKDF2 (same as better-auth) - more secure than bcrypt
+                const salt = randomBytes(32); // 256-bit salt (same size as better-auth)
+                const iterations = 10000; // Standard iteration count for PBKDF2
+                const keyLength = 64; // 512-bit derived key
+                const digest = 'sha512'; // Same as better-auth pattern
+                
+                const derivedKey = await pbkdf2Async(password, salt, iterations, keyLength, digest);
+                
+                // Format: "salt:iterations:hash" (similar to better-auth)
+                const hashedPassword = `${salt.toString('hex')}:${iterations}:${derivedKey.toString('hex')}`;
 
                 // Salvar no histórico de senhas (tabela dedicada)
                 await adapter.create({

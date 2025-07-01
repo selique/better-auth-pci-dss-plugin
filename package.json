@@ -37,12 +37,10 @@
     "url": "git+https://github.com/selique/better-auth-pci-dss-plugin.git"
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
     "typescript": "^5.8.3"
   },
   "devDependencies": {
     "@better-auth-kit/tests": "^0.2.0",
-    "@types/bcrypt": "^5.0.2",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.4",
     "better-auth": "^1.2.10",
