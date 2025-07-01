@@ -1,27 +1,88 @@
-export { D as Account, a as Adapter, J as AdapterInstance, F as AdapterSchemaCreation, x as AdditionalSessionFieldsInput, y as AdditionalSessionFieldsOutput, v as AdditionalUserFieldsInput, w as AdditionalUserFieldsOutput, n as Auth, p as AuthContext, g as AuthPluginSchema, B as BetterAuthOptions, h as BetterAuthPlugin, O as FilterActions, N as FilteredAPI, G as GenericEndpointContext, H as HookEndpointContext, Q as InferAPI, I as InferOptionSchema, i as InferPluginErrorCodes, z as InferPluginTypes, r as InferSession, P as InferSessionAPI, q as InferUser, _ as LogHandlerParams, T as LogLevel, Z as Logger, M as Models, R as RateLimit, L as SecondaryStorage, S as Session, U as User, V as Verification, W as Where, t as WithJsDoc, u as betterAuth, $ as createLogger, E as init, X as levels, a0 as logger, Y as shouldPublishLog } from './shared/better-auth.BqHwLvDK.js';
-export { AtomListener, BetterAuthClientPlugin, ClientOptions, InferActions, InferAdditionalFromClient, InferClientAPI, InferErrorCodes, InferPluginsFromClient, InferSessionFromClient, InferUserFromClient, IsSignal, Store } from './types/index.js';
-export { H as HIDE_METADATA } from './shared/better-auth.DEHJp1rk.js';
-export { g as generateState, p as parseState } from './shared/better-auth.CGNwsbiS.js';
-export * from 'better-call';
-export * from 'zod';
-export { D as DeepPartial, E as Expand, H as HasRequiredKeys, a as LiteralNumber, L as LiteralString, d as LiteralUnion, O as OmitId, c as PreserveJSDoc, b as Prettify, P as PrettifyDeep, R as RequiredKeysOf, S as StripEmptyObjects, U as UnionToIntersection, W as WithoutEmpty } from './shared/better-auth.Bi8FQwDD.js';
-export { O as OAuth2Tokens, a as OAuthProvider, P as ProviderOptions } from './shared/better-auth.CQXg7f-2.js';
-import 'kysely';
-import 'better-sqlite3';
-import 'bun:sqlite';
-import '@better-fetch/fetch';
-import 'nanostores';
-import 'jose';
+import { BetterAuthPlugin } from 'better-auth';
 
-declare function capitalizeFirstLetter(str: string): string;
-
-declare const generateId: (size?: number) => string;
-
-declare class BetterAuthError extends Error {
-    constructor(message: string, cause?: string);
-}
-declare class MissingDependencyError extends BetterAuthError {
-    constructor(pkgName: string);
+export interface SecurityLogger {
+  info: (message: string, meta?: any) => void;
+  warn: (message: string, meta?: any) => void;
+  error: (message: string, meta?: any) => void;
 }
 
-export { BetterAuthError, MissingDependencyError, capitalizeFirstLetter, generateId };
+export interface SecurityAlert {
+  threshold: number;
+  timeWindow: string; // e.g., '15 minutes', '1 hour'
+  action: "log" | "alert" | "block";
+  callback?: (event: SecurityEvent) => void;
+}
+
+export interface SecurityEvent {
+  type: string;
+  userId: string;
+  timestamp: string;
+  ipAddress?: string;
+  userAgent?: string;
+  metadata?: any;
+}
+
+export interface DataRetentionPolicy {
+  passwordHistory?: {
+    retainCount: number;
+    maxAge?: string; // e.g., '2 years'
+  };
+  auditLogs?: {
+    retainPeriod: string;
+    cleanupInterval?: string;
+  };
+}
+
+export interface SecurityMetrics {
+  trackFailedAttempts?: boolean;
+  trackPasswordChanges?: boolean;
+  trackHistoryViolations?: boolean;
+  trackForceChanges?: boolean;
+}
+
+export interface PCIDSSPasswordPolicyOptions {
+  passwordHistoryCount: number;
+  passwordChangeIntervalDays: number;
+  inactiveAccountDeactivationDays: number;
+  forcePasswordChangeOnFirstLogin: boolean;
+
+  // 🔐 Security Enhancements
+  security?: {
+    logger?: SecurityLogger;
+    alerts?: {
+      passwordHistoryViolations?: SecurityAlert;
+      multipleFailedAttempts?: SecurityAlert;
+      massPasswordChanges?: SecurityAlert;
+    };
+    dataRetention?: DataRetentionPolicy;
+    metrics?: SecurityMetrics;
+    auditTrail?: boolean;
+    rateLimit?: {
+      enabled: boolean;
+      maxAttempts: number;
+      windowMs: number;
+    };
+  };
+}
+
+/**
+ * Better Auth PCI DSS Plugin
+ * 
+ * Provides enterprise-grade password policies and security features
+ * compliant with PCI DSS 4.0 requirements.
+ * 
+ * Features:
+ * - Password history enforcement (prevents reuse)
+ * - Automatic password expiration
+ * - Force password change (first login, expired passwords)  
+ * - Zero API exposure (sensitive data isolation)
+ * - Comprehensive audit trail
+ * - Rate limiting and security alerts
+ * - PBKDF2-SHA512 native crypto (better-auth compatible)
+ * 
+ * @param options Configuration options for the PCI DSS plugin
+ * @returns BetterAuthPlugin instance
+ */
+export declare function pciDssPasswordPolicy(
+  options: PCIDSSPasswordPolicyOptions
+): BetterAuthPlugin; 
