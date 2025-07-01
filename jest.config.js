@@ -11,11 +11,5 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!(@better-auth-kit/tests|better-auth)/)',
   ],
-  extensionsToTreatAsEsm: ['.ts'],
-  globals: {
-    'ts-jest': {
-      useESM: true,
-    },
-  },
 };
 
