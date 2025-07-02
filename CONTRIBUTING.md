@@ -23,7 +23,7 @@ npm run lint
 
 ### **Security First**
 - Never expose sensitive data in user-facing APIs
-- Use bcrypt for password hashing (minimum cost factor 12)
+- Use PBKDF2-SHA512 for password hashing (Node.js crypto, better-auth compatible)
 - Follow least privilege principle in database access
 - Validate all inputs and sanitize outputs
 - Log security events appropriately (without sensitive data)
@@ -49,7 +49,7 @@ async function validatePasswordHistory(
   });
   
   for (const entry of history) {
-    if (await bcrypt.compare(password, entry.passwordHash)) {
+    if (await validatePassword(password, entry.passwordHash)) {
       throw new Error("Password cannot be one of the last 12 used passwords");
     }
   }

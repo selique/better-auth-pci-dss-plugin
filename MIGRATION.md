@@ -155,8 +155,8 @@ ON "pciAuditLog"("eventType", "timestamp" DESC);
 # PostgreSQL
 pg_dump your_database > backup_$(date +%Y%m%d_%H%M%S).sql
 
-# MySQL
-mysqldump your_database > backup_$(date +%Y%m%d_%H%M%S).sql
+# PostgreSQL
+pg_dump your_database > backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 ### **Step 2: Install Plugin**
@@ -401,34 +401,7 @@ COMMIT;
 // Already shown above - default configuration
 ```
 
-### **MySQL**
-```sql
--- MySQL equivalent tables
-CREATE TABLE `pciPasswordHistory` (
-  `id` VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-  `userId` VARCHAR(36) NOT NULL,
-  `passwordHash` VARCHAR(255) NOT NULL,
-  `createdAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE
-);
 
-CREATE INDEX `idx_pci_password_history_user_created` 
-ON `pciPasswordHistory`(`userId`, `createdAt` DESC);
-```
-
-### **SQLite**
-```sql
--- SQLite equivalent tables
-CREATE TABLE "pciPasswordHistory" (
-  "id" TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-  "userId" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-  "passwordHash" TEXT NOT NULL,
-  "createdAt" DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX "idx_pci_password_history_user_created" 
-ON "pciPasswordHistory"("userId", "createdAt" DESC);
-```
 
 ---
 
@@ -460,15 +433,13 @@ ON "pciPasswordHistory"("userId", "createdAt" DESC);
 
 ## 📦 **Database Migration Tools & Better Auth Integration**
 
-This section provides ready-to-use SQL migration scripts and integration guides for Better Auth supported databases and migration tools.
+This section provides ready-to-use SQL migration scripts and integration guides for Better Auth with PostgreSQL (the officially recommended database).
 
 ### **🗃️ Available Migration Scripts**
 
 Pre-built migration files for Better Auth supported databases:
 
-- **`V1__Create_PCI_DSS_Tables.sql`** - PostgreSQL (recommended for production)
-
-**Note**: For MongoDB, use the MongoDB adapter - no SQL migration needed.
+- **`V1__Create_PCI_DSS_Tables.sql`** - PostgreSQL (production-ready)
 
 The PostgreSQL script includes:
 - ✅ Complete table creation with constraints
@@ -519,67 +490,7 @@ flyway migrate
 liquibase update
 ```
 
-#### **Prisma Migrations**
-```sql
--- prisma/migrations/001_pci_dss_tables/migration.sql
--- Copy the content from V1__Create_PCI_DSS_Tables.sql here
-```
 
-```bash
-# Generate and apply migration
-npx prisma db push
-# or
-npx prisma migrate dev --name pci-dss-tables
-```
-
-#### **Drizzle Kit (PostgreSQL)**
-```typescript
-// drizzle/schema.ts - Define the PCI DSS tables in your Drizzle schema
-import { pgTable, uuid, varchar, timestamp, boolean, text, index } from 'drizzle-orm/pg-core';
-
-export const pciPasswordHistory = pgTable('pciPasswordHistory', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),
-  passwordHash: varchar('passwordHash', { length: 255 }).notNull(),
-  createdAt: timestamp('createdAt').defaultNow()
-}, (table) => ({
-  userCreatedIdx: index('idx_pci_password_history_user_created').on(table.userId, table.createdAt),
-  createdIdx: index('idx_pci_password_history_created').on(table.createdAt)
-}));
-
-export const pciUserMetadata = pgTable('pciUserMetadata', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('userId').notNull().unique().references(() => user.id, { onDelete: 'cascade' }),
-  lastPasswordChange: timestamp('lastPasswordChange'),
-  forcePasswordChange: boolean('forcePasswordChange').default(false),
-  lastLoginDate: timestamp('lastLoginDate'),
-  createdAt: timestamp('createdAt').defaultNow(),
-  updatedAt: timestamp('updatedAt').defaultNow()
-}, (table) => ({
-  userIdx: index('idx_pci_user_metadata_user').on(table.userId),
-  lastPasswordChangeIdx: index('idx_pci_user_metadata_last_password_change').on(table.lastPasswordChange)
-}));
-
-export const pciAuditLog = pgTable('pciAuditLog', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),
-  eventType: varchar('eventType', { length: 100 }).notNull(),
-  timestamp: timestamp('timestamp').defaultNow(),
-  ipAddress: varchar('ipAddress', { length: 45 }),
-  userAgent: text('userAgent'),
-  metadata: text('metadata')
-}, (table) => ({
-  userTimestampIdx: index('idx_pci_audit_log_user_timestamp').on(table.userId, table.timestamp),
-  eventTimestampIdx: index('idx_pci_audit_log_event_timestamp').on(table.eventType, table.timestamp),
-  timestampIdx: index('idx_pci_audit_log_timestamp').on(table.timestamp)
-}));
-```
-
-```bash
-# Generate and apply migration with Drizzle
-npx drizzle-kit generate
-npx drizzle-kit migrate
-```
 
 ---
 
@@ -625,9 +536,9 @@ All scripts include essential indexes:
 
 ---
 
-### **🛠️ Better Auth Supported Databases**
+### **🛠️ Better Auth Database Support**
 
-#### **PostgreSQL** (Recommended)
+#### **PostgreSQL** (Production-Ready)
 - ✅ Full UUID support with `gen_random_uuid()`
 - ✅ Advanced indexing with partial indexes
 - ✅ SQL functions for automated cleanup
@@ -635,15 +546,7 @@ All scripts include essential indexes:
 - ✅ JSON/JSONB support for metadata
 - ✅ Best performance for Better Auth workloads
 - ✅ Native Better Auth adapter support
-
-#### **MongoDB**
-- ✅ NoSQL flexibility for complex user data
-- ✅ Automatic schema evolution
-- ✅ Built-in replication and sharding
-- ✅ Native Better Auth MongoDB adapter
-- ✅ TTL indexes for automatic data cleanup
-- ⚠️ Different query patterns than SQL
-- ⚠️ No SQL migration scripts needed
+- ✅ Comprehensive migration script included
 
 ---
 
@@ -687,27 +590,6 @@ SELECT cleanup_password_history(user_id, 4) FROM "user";
 -- Clean audit logs older than 1 year
 SELECT cleanup_audit_logs(365);
 ```
-
-**MongoDB - Collection Maintenance**
-```javascript
-// MongoDB cleanup using the Better Auth MongoDB adapter
-// Note: Better Auth handles this automatically with TTL indexes
-// Manual cleanup if needed:
-
-// Remove old password history (keep last 4 per user)
-db.pciPasswordHistory.aggregate([
-  { $sort: { userId: 1, createdAt: -1 } },
-  { $group: { _id: "$userId", docs: { $push: "$$ROOT" } } },
-  { $project: { toDelete: { $slice: ["$docs", 4, { $size: "$docs" }] } } },
-  { $unwind: "$toDelete" },
-  { $replaceRoot: { newRoot: "$toDelete" } }
-]).forEach(doc => db.pciPasswordHistory.deleteOne({ _id: doc._id }));
-
-// Remove old audit logs (older than 365 days)
-db.pciAuditLog.deleteMany({
-  timestamp: { $lt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
-});
-```
  
 #### **Scheduled Maintenance Jobs**
 
@@ -746,14 +628,6 @@ cron.schedule('0 2 * * *', async () => {
     console.error('❌ Cleanup failed:', error.message);
   }
 });
-
-// MongoDB scheduled cleanup (if using MongoDB adapter)
-cron.schedule('0 2 * * *', async () => {
-  console.log('Running MongoDB PCI DSS data cleanup...');
-  
-  // Note: Better Auth MongoDB adapter handles TTL automatically
-  // Manual cleanup only if needed
-});
 ```
 
 ---
@@ -776,17 +650,6 @@ WHERE table_name = 'pciPasswordHistory';
 -- Verify indexes were created
 SELECT indexname, tablename FROM pg_indexes 
 WHERE indexname LIKE 'idx_pci%' ORDER BY tablename, indexname;
-```
-
-#### **MongoDB**
-```javascript
-// Verify collections were created
-db.runCommand("listCollections", { filter: { name: /^pci/ } });
-
-// Check indexes
-db.pciPasswordHistory.getIndexes();
-db.pciUserMetadata.getIndexes();
-db.pciAuditLog.getIndexes();
 ```
 
 #### **Better Auth Configuration Test**

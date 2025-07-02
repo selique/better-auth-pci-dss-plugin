@@ -12,8 +12,11 @@ Production security guidelines for the Better Auth PCI DSS Plugin.
 
 ### **Hashing Standards**
 ```typescript
-// ✅ Use bcrypt with cost factor 12+
-const hashedPassword = await bcrypt.hash(password, 12);
+// ✅ Use PBKDF2-SHA512 (Node.js crypto, compatible with better-auth)
+import { pbkdf2, randomBytes } from 'crypto';
+
+const salt = randomBytes(32);
+const hashedPassword = pbkdf2(password, salt, 10000, 64, 'sha512');
 
 // ❌ Never use: plaintext, MD5, SHA1, weak algorithms
 ```
@@ -188,7 +191,7 @@ catch (error) {
 ## 📋 **Compliance Requirements**
 
 ### **PCI DSS Implementation**
-- **8.2.1**: Strong cryptographic algorithms (bcrypt with cost factor 12+)
+- **8.2.1**: Strong cryptographic algorithms (PBKDF2-SHA512, NIST approved)
 - **8.2.3**: Secure password history mechanism (dedicated tables)
 - **8.2.4**: Regular password changes enforced (configurable intervals)
 - **8.2.5**: First-time password must be changed (force flag)
